@@ -3,35 +3,53 @@ package com.ug.zik.constanalysis;
 import com.ug.zik.constanalysis.capacitycalculator.Calculator;
 import com.ug.zik.constanalysis.model.GraphBuilder;
 import com.ug.zik.constanalysis.model.network.NetworkParams;
-import com.ug.zik.constanalysis.model.network.VardoyanFigure2.VardoyanEdge;
-import com.ug.zik.constanalysis.model.network.VardoyanFigure2.VardoyanVertex;
 import com.ug.zik.constanalysis.model.network.abilene.AbileneEdge;
 import com.ug.zik.constanalysis.model.network.abilene.AbileneVertex;
+import com.ug.zik.constanalysis.model.network.nsfnet.NSFNetEdge;
+import com.ug.zik.constanalysis.model.network.nsfnet.NSFNetVertex;
 
 import java.math.MathContext;
+import java.util.Arrays;
 import java.util.Map;
-import java.util.Random;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 public class App {
     public static void main(String[] args) {
-        final Random random = new Random(100);
         final MathContext mc = new MathContext(25);
-
+        Map<AbileneVertex, Double> abileneVertices = Arrays
+                .stream(AbileneVertex.values())
+                .collect(Collectors.toMap(
+                        Function.identity(),
+                        v -> 1.0d
+                ));
         NetworkParams<AbileneVertex, AbileneEdge> abileneParams = NetworkParams.build(
-                Map.of(
-                        AbileneVertex., 0.123d,
-                        VardoyanVertex.S1, 0.345d,
-                        VardoyanVertex.S2, 1d,
-                        VardoyanVertex.S3, 0.123d,
-                        VardoyanVertex.S4, 1d,
-                        VardoyanVertex.T, 0.334d
-                ),
+                abileneVertices,
                 AbileneEdge.VardoyanPaperWeights(),
-                VardoyanVertex.class,
-                VardoyanEdge.class
+                AbileneVertex.class,
+                AbileneEdge.class
         );
-        final var results = Calculator.calculateAmGmCapacities(abileneParams, AbileneVertex.v0, AbileneVertex.v10, mc);
-        System.out.println(results);
+        Map<NSFNetVertex, Double> nsfnetVertices = Arrays
+                .stream(NSFNetVertex.values())
+                .collect(Collectors.toMap(
+                        Function.identity(),
+                        v -> 1.0d
+                ));
+        NetworkParams<NSFNetVertex, NSFNetEdge> nsfnetParams = NetworkParams.build(
+                nsfnetVertices,
+                NSFNetEdge.VardoyanPaperWeights(),
+                NSFNetVertex.class,
+                NSFNetEdge.class
+        );
+        var abileneGraph = GraphBuilder.buildGraphWithCalculatedProbability(abileneParams);
+        var nsfnetGraph = GraphBuilder.buildGraphWithCalculatedProbability(nsfnetParams);
+
+        final var abileneResults = Calculator.calculateAmGmCapacities(abileneGraph, AbileneVertex.v0, AbileneVertex.v10, mc);
+        final var nsfnetResults = Calculator.calculateAmGmCapacities(nsfnetGraph, NSFNetVertex.v_0, NSFNetVertex.v_13, mc);
+        System.out.println("Abilene results:");
+        System.out.println(abileneResults);
+        System.out.println("NSFNet results:");
+        System.out.println(nsfnetResults);
     }
 
 

@@ -5,7 +5,6 @@ import com.ug.zik.constanalysis.model.network.QCNode;
 import com.ug.zik.constanalysis.model.network.Vertex;
 import com.ug.zik.constanalysis.model.result.AmGmResult;
 import com.ug.zik.constanalysis.model.result.CalculationResult;
-import com.ug.zik.constanalysis.shortestpaths.BhandariDijkstraKDisjointShortestPaths;
 import org.jgrapht.Graph;
 import org.jgrapht.GraphPath;
 import org.jgrapht.alg.shortestpath.BhandariKDisjointShortestPaths;
@@ -40,8 +39,8 @@ public class Calculator {
         final var entries = IntStream.rangeClosed(1, (int) maximalPossibleDisjointPaths)
                 .mapToObj(k -> shortestPathsAlgorithms.getPaths(sourceNode, targetNode, k))
                 .map(paths -> {
-                    final var am = calculateAmCapacity(mathContext, paths.size(), paths);
-                    final var gm = calculateGmCapacity(mathContext, paths.size(), paths);
+                    final var am = calculateAmCapacity(graph, mathContext, paths.size(), paths);
+                    final var gm = calculateGmCapacity(graph, mathContext, paths.size(), paths);
                     return new AmGmResult.Entry(Set.copyOf(paths), gm, am);
                 })
                 .collect(Collectors.toList());
@@ -75,10 +74,11 @@ public class Calculator {
         final var shortestPathsAlgorithms = new BhandariKDisjointShortestPaths<>(graph);
         final var capacities = IntStream.rangeClosed(1, (int) maximalPossibleDisjointPaths).mapToObj(i -> {
             List<GraphPath<QCNode, DefaultWeightedEdge>> shortestPaths = shortestPathsAlgorithms.getPaths(sourceNode, targetNode, i);
-            final var pathsCapacity = calculateGmCapacity(mathContext, i, shortestPaths);
+            final var pathsCapacity = calculateGmCapacity(graph, mathContext, i, shortestPaths);
             return new CalculationResult.Entry(Set.copyOf(shortestPaths), pathsCapacity);
         }).collect(Collectors.toList());
         return new CalculationResult(capacities);
+
     }
 
     /**
@@ -108,17 +108,17 @@ public class Calculator {
         final var shortestPathsAlgorithms = new BhandariKDisjointShortestPaths<>(graph);
         final var capacities = IntStream.rangeClosed(1, (int) maximalPossibleDisjointPaths).mapToObj(i -> {
             List<GraphPath<QCNode, DefaultWeightedEdge>> shortestPaths = shortestPathsAlgorithms.getPaths(sourceNode, targetNode, i);
-            final var pathsCapacity = calculateAmCapacity(mathContext, i, shortestPaths);
+            final var pathsCapacity = calculateAmCapacity(graph, mathContext, i, shortestPaths);
             return new CalculationResult.Entry(Set.copyOf(shortestPaths), pathsCapacity);
         }).collect(Collectors.toList());
         return new CalculationResult(capacities);
     }
 
-    private static BigDecimal calculateAmCapacity(MathContext mathContext, int k, List<GraphPath<QCNode, DefaultWeightedEdge>> shortestPaths) {
+    private static BigDecimal calculateAmCapacity(Graph<QCNode, DefaultWeightedEdge> graph, MathContext mathContext, int k, List<GraphPath<QCNode, DefaultWeightedEdge>> shortestPaths) {
         return shortestPaths
                 .stream()
                 .parallel()
-                .map(path -> calculatePathCapacity(path, mathContext))
+                .map(path -> calculatePathCapacity(graph, path, mathContext))
                 .reduce((bd1, bd2) -> bd1.add(bd2, mathContext))
                 .stream()
                 .map(bd -> bd.divide(BigDecimal.valueOf(k), mathContext))
@@ -146,26 +146,22 @@ public class Calculator {
     }
 
     private static BigDecimal calculatePathCapacity(
-            final GraphPath<QCNode, DefaultWeightedEdge> path, final MathContext mc) {
+            Graph<QCNode, DefaultWeightedEdge> graph, final GraphPath<QCNode, DefaultWeightedEdge> path, final MathContext mc) {
         if (path.getVertexList().isEmpty()) {
             return BigDecimal.ZERO;
         } else if (path.getVertexList().size() <= 2) {
             return BigDecimal.ONE;
         }
-        BigDecimal result = BigDecimal.ONE;
-        for (int idx = 1; idx < path.getLength() - 1; idx++) {
-            final BigDecimal bmp = BigDecimal.valueOf(path.getVertexList().get(idx).getBellMeasurementProbability());
-            result = result.multiply(bmp, mc);
-        }
-        return result;
+        return path.getEdgeList().stream().map(graph::getEdgeWeight).map(BigDecimal::valueOf)
+                .reduce(BigDecimal.ONE, BigDecimal::multiply);
     }
 
 
-    private static BigDecimal calculateGmCapacity(MathContext mathContext, int k, List<GraphPath<QCNode, DefaultWeightedEdge>> shortestPaths) {
+    private static BigDecimal calculateGmCapacity(Graph<QCNode, DefaultWeightedEdge> graph, MathContext mathContext, int k, List<GraphPath<QCNode, DefaultWeightedEdge>> shortestPaths) {
         return shortestPaths
                 .stream()
                 .parallel()
-                .map(path -> calculatePathCapacity(path, mathContext))
+                .map(path -> calculatePathCapacity(graph, path, mathContext))
                 .reduce((bd1, bd2) -> bd1.multiply(bd2, mathContext))
                 .stream()
                 .map(bd -> {
