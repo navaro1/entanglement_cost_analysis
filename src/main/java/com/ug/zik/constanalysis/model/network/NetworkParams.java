@@ -47,7 +47,7 @@ public class NetworkParams<V extends Vertex, E extends Edge<V>> {
 
     }
 
-    private NetworkParams(Map<V, Double> bsmProbabilities, Map<E, Double> entanglementGenerationProbabilities) {
+    public NetworkParams(Map<V, Double> bsmProbabilities, Map<E, Double> entanglementGenerationProbabilities) {
         this.bsmProbabilities = bsmProbabilities;
         this.entanglementGenerationProbabilities = entanglementGenerationProbabilities;
     }
